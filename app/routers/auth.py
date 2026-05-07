@@ -26,7 +26,7 @@ def signup(request: Request, payload: UserCreate, db: Session = Depends(get_db))
         name=payload.name,
         email=payload.email,
         hashed_password=hash_password(payload.password),
-        role=UserRole.member,
+        role=UserRole.member,  # role is always forced to member on self-registration
     )
     db.add(user)
     db.commit()
