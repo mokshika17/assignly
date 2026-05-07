@@ -19,6 +19,9 @@ def signup(request: Request, payload: UserCreate, db: Session = Depends(get_db))
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+
+    # Always register new users as members — role elevation must go through
+    # an admin action, not the public signup endpoint.
     user = User(
         name=payload.name,
         email=payload.email,
