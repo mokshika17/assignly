@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, computed_field
 from app.models import UserRole, TaskStatus
 
 
@@ -104,7 +104,17 @@ class TaskRead(TaskBase):
     status: TaskStatus
     project_id: uuid.UUID
     assignee_id: Optional[uuid.UUID]
+    completed_at: Optional[datetime]          # ← ADD
     created_at: datetime
     updated_at: datetime
+
+    @computed_field                            # ← ADD
+    @property
+    def is_overdue(self) -> bool:
+        if self.status == TaskStatus.done:
+            return False
+        if self.due_date and self.due_date < datetime.now(timezone.utc):
+            return True
+        return False
 
     model_config = {"from_attributes": True}

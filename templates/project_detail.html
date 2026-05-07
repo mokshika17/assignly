@@ -52,9 +52,23 @@
   <tbody>
     {% for task in tasks %}
     <tr>
-      <td>{{ task.title }}</td>
+      <td><a href="/tasks/{{ task.id }}">{{ task.title }}</a></td>
       <td>{{ task.assignee.name if task.assignee else '—' }}</td>
-      <td><span class="badge badge-{{ task.status }}">{{ task.status }}</span></td>
+      <td>
+        {% set is_mine = (task.assignee_id == user.id|string) %}
+        {% if user.role == "admin" or is_mine %}
+        <form method="post" action="/tasks/{{ task.id }}/status" style="margin:0;">
+          <select name="new_status" onchange="this.form.submit()"
+                  style="padding: 0.2rem 0.4rem; font-size: 0.85rem;">
+            <option value="todo"        {% if task.status == "todo" %}selected{% endif %}>To Do</option>
+            <option value="in_progress" {% if task.status == "in_progress" %}selected{% endif %}>In Progress</option>
+            <option value="done"        {% if task.status == "done" %}selected{% endif %}>Done</option>
+          </select>
+        </form>
+        {% else %}
+        <span class="badge badge-{{ task.status.value }}">{{ task.status.value.replace('_', ' ').title() }}</span>
+        {% endif %}
+      </td>
       <td>{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '—' }}</td>
       {% if user.role == "admin" %}
       <td><a href="/tasks/{{ task.id }}/edit">Edit</a></td>

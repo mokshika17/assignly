@@ -80,6 +80,7 @@ class Task(TimestampMixin, Base):
     description = Column(Text, nullable=True)
     status = Column(Enum(TaskStatus), default=TaskStatus.todo, nullable=False)
     due_date = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)   # ← ADD THIS
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     assignee_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 

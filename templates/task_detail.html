@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ task.title }} — Assignly{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+  <div>
+    <h2>{{ task.title }}</h2>
+    <p style="color: var(--pico-muted-color);">
+      Project: <a href="/projects/{{ task.project_id }}">{{ task.project.name }}</a>
+    </p>
+  </div>
+  {% if user.role == "admin" %}
+  <form method="post" action="/tasks/{{ task.id }}/delete"
+        onsubmit="return confirm('Delete this task? This cannot be undone.')">
+    <button type="submit" class="secondary" style="background:var(--pico-color-red-500); border:none; color:#fff;">
+      Delete Task
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+{% if error %}
+<p style="color: var(--pico-color-red-500);">{{ error }}</p>
+{% endif %}
+
+<article style="max-width: 580px;">
+  <form method="post" action="/tasks/{{ task.id }}/edit">
+
+    <!-- Title — admin editable, member read-only -->
+    <label>Title
+      {% if user.role == "admin" %}
+        <input type="text" name="title" value="{{ task.title }}" required />
+      {% else %}
+        <input type="text" value="{{ task.title }}" disabled />
+      {% endif %}
+    </label>
+
+    <!-- Description -->
+    <label>Description
+      {% if user.role == "admin" %}
+        <textarea name="description" rows="3">{{ task.description or '' }}</textarea>
+      {% else %}
+        <textarea rows="3" disabled>{{ task.description or '' }}</textarea>
+      {% endif %}
+    </label>
+
+    <!-- Status — both can edit -->
+    <label>Status
+      <select name="status">
+        {% for s in statuses %}
+        <option value="{{ s }}" {% if task.status.value == s %}selected{% endif %}>
+          {{ s.replace('_', ' ').title() }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <!-- Due date — admin only -->
+    {% if user.role == "admin" %}
+    <label>Due Date
+      <input type="datetime-local" name="due_date"
+             value="{{ task.due_date.strftime('%Y-%m-%dT%H:%M') if task.due_date else '' }}" />
+    </label>
+
+    <!-- Assignee — admin only -->
+    <label>Assignee
+      <select name="assignee_id">
+        <option value="">— Unassigned —</option>
+        {% for m in members %}
+        <option value="{{ m.id }}"
+          {% if task.assignee_id and task.assignee_id|string == m.id|string %}selected{% endif %}>
+          {{ m.name }} ({{ m.role.value }})
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+
+    <div style="display:flex; gap:1rem; margin-top:1rem;">
+      <button type="submit">Save Changes</button>
+      <a href="/projects/{{ task.project_id }}" role="button" class="secondary">Back to Project</a>
+    </div>
+  </form>
+</article>
+
+<!-- Task metadata -->
+<article style="max-width: 580px; margin-top: 1.5rem; font-size: 0.85rem; color: var(--pico-muted-color);">
+  <p>Assigned to: <strong>{{ task.assignee.name if task.assignee else '—' }}</strong></p>
+  <p>Created: {{ task.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+  <p>Last updated: {{ task.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+  {% if task.completed_at %}
+  <p>Completed: {{ task.completed_at.strftime('%Y-%m-%d %H:%M') }}</p>
+  {% endif %}
+</article>
+
+{% endblock %}

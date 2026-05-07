@@ -151,6 +151,13 @@ def update_task(
     for field, value in update_data.items():
         setattr(task, field, value)
 
+    # Set or clear completed_at based on status
+    if "status" in update_data:
+        if update_data["status"] == TaskStatus.done:
+            task.completed_at = datetime.now(timezone.utc)
+        else:
+            task.completed_at = None   # revert if moved back from done
+
     db.commit()
     db.refresh(task)
 

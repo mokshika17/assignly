@@ -100,41 +100,41 @@ def login_submit(
     return redirect_with_cookie("/dashboard", token, remember_me=is_remembered)
 
 
-@router.get("/signup", response_class=HTMLResponse)
-def signup_page(request: Request):
-    return render("signup.html", request, {"user": None})
+    @router.get("/signup", response_class=HTMLResponse)
+    def signup_page(request: Request):
+        return render("signup.html", request, {"user": None})
 
 
-@router.post("/signup", response_class=HTMLResponse)
-def signup_submit(
-    request: Request,
-    name: str = Form(...),
-    email: str = Form(...),
-    password: str = Form(...),
-    role: str = Form("member"),
-    db: Session = Depends(get_db),
-):
-    existing = db.query(User).filter(User.email == email).first()
-    if existing:
-        return render("signup.html", request, {
-            "user": None,
-            "error": "Email already registered",
-        })
-    if len(password) < 8:
-        return render("signup.html", request, {
-            "user": None,
-            "error": "Password must be at least 8 characters",
-        })
-    user = User(
-        name=name,
-        email=email,
-        hashed_password=hash_password(password),
-        role=UserRole(role),
-    )
-    db.add(user)
-    db.commit()
-    token = create_access_token(subject=str(user.id), role=user.role.value)
-    return redirect_with_cookie("/dashboard", token)
+    @router.post("/signup", response_class=HTMLResponse)
+    def signup_submit(
+        request: Request,
+        name: str = Form(...),
+        email: str = Form(...),
+        password: str = Form(...),
+        role: str = Form("member"),
+        db: Session = Depends(get_db),
+    ):
+        existing = db.query(User).filter(User.email == email).first()
+        if existing:
+            return render("signup.html", request, {
+                "user": None,
+                "error": "Email already registered",
+            })
+        if len(password) < 8:
+            return render("signup.html", request, {
+                "user": None,
+                "error": "Password must be at least 8 characters",
+            })
+        user = User(
+            name=name,
+            email=email,
+            hashed_password=hash_password(password),
+            role=UserRole(role),
+        )
+        db.add(user)
+        db.commit()
+        token = create_access_token(subject=str(user.id), role=user.role.value)
+        return redirect_with_cookie("/dashboard", token)
 
 
 @router.post("/logout")
@@ -188,7 +188,19 @@ def projects_page(request: Request, db: Session = Depends(get_db)):
     user = get_optional_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    projects = db.query(Project).all()
+
+    if user.role == UserRole.admin:
+        projects = db.query(Project).all()
+    else:
+        # Only projects where the member has at least one assigned task
+        projects = (
+            db.query(Project)
+            .join(Task, Task.project_id == Project.id)
+            .filter(Task.assignee_id == user.id)
+            .distinct()
+            .all()
+        )
+
     return render("projects.html", request, {
         "user": user,
         "projects": projects,
@@ -228,19 +240,27 @@ def project_detail(request: Request, project_id: uuid.UUID, db: Session = Depend
     user = get_optional_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
+
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         return RedirectResponse(url="/projects", status_code=302)
-    tasks = (
-        db.query(Task)
-        .options(joinedload(Task.assignee))
-        .filter(Task.project_id == project_id)
-        .all()
-    )
+
+    if user.role == UserRole.member:
+        tasks = db.query(Task).filter(
+            Task.project_id == project_id,
+            Task.assignee_id == user.id,
+        ).all()
+        if not tasks:
+            return RedirectResponse(url="/dashboard", status_code=302)
+    else:
+        tasks = db.query(Task).filter(Task.project_id == project_id).all()
+
+    members = db.query(User).all()
     return render("project_detail.html", request, {
         "user": user,
         "project": project,
         "tasks": tasks,
+        "members": members,
     })
 
 
@@ -312,11 +332,11 @@ def edit_task_page(request: Request, task_id: uuid.UUID, db: Session = Depends(g
 def edit_task_submit(
     request: Request,
     task_id: uuid.UUID,
-    title: str = Form(...),
-    description: str = Form(""),
     status_val: str = Form(..., alias="status"),
-    due_date: str = Form(""),
-    assignee_id: str = Form(""),
+    title: str = Form(None),
+    description: str = Form(None),
+    due_date: str = Form(None),
+    assignee_id: str = Form(None),
     db: Session = Depends(get_db),
 ):
     user = get_optional_user(request, db)
@@ -329,13 +349,60 @@ def edit_task_submit(
     if user.role == UserRole.member:
         if task.assignee_id != user.id:
             return RedirectResponse(url="/dashboard", status_code=302)
-        task.status = TaskStatus(status_val)
+        new_status = TaskStatus(status_val)
+        task.status = new_status
     else:
-        task.title = title
+        task.title = title or task.title
         task.description = description or None
-        task.status = TaskStatus(status_val)
+        new_status = TaskStatus(status_val)
+        task.status = new_status
         task.due_date = datetime.fromisoformat(due_date) if due_date else None
         task.assignee_id = uuid.UUID(assignee_id) if assignee_id else None
 
+    if new_status == TaskStatus.done:
+        task.completed_at = datetime.now(timezone.utc)
+    else:
+        task.completed_at = None
+
     db.commit()
     return RedirectResponse(url=f"/projects/{task.project_id}", status_code=302)
+
+
+@router.get("/tasks/{task_id}", response_class=HTMLResponse)
+def task_detail(request: Request, task_id: uuid.UUID, db: Session = Depends(get_db)):
+    user = get_optional_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    # Members can only view tasks assigned to them
+    if user.role == UserRole.member and task.assignee_id != user.id:
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    statuses = [s.value for s in TaskStatus]
+    members = db.query(User).all() if user.role == UserRole.admin else []
+    return render("task_detail.html", request, {
+        "user": user,
+        "task": task,
+        "statuses": statuses,
+        "members": members,
+    })
+
+
+@router.post("/tasks/{task_id}/delete", response_class=RedirectResponse)
+def delete_task_page(request: Request, task_id: uuid.UUID, db: Session = Depends(get_db)):
+    user = get_optional_user(request, db)
+    if not user or user.role != UserRole.admin:
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    project_id = task.project_id
+    db.delete(task)
+    db.commit()
+    return RedirectResponse(url=f"/projects/{project_id}", status_code=303)

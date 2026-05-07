@@ -2,7 +2,7 @@
 {% block title %}Dashboard — Assignly{% endblock %}
 {% block content %}
 <h2>Dashboard</h2>
-<p>Welcome back, <strong>{{ user.name }}</strong> ({{ user.role }})</p>
+<p>Welcome back, <strong>{{ user.name }}</strong> ({{ user.role.value }})</p>
 
 <div class="grid">
   <article>
@@ -41,9 +41,9 @@
   <tbody>
     {% for task in tasks %}
     <tr>
-      <td>{{ task.title }}</td>
-      <td><a href="/projects/{{ task.project_id }}">View Project</a></td>
-      <td><span class="badge badge-{{ task.status }}">{{ task.status }}</span></td>
+      <td><a href="/tasks/{{ task.id }}">{{ task.title }}</a></td>
+      <td><a href="/projects/{{ task.project_id }}">{{ task.project.name }}</a></td>
+      <td><span class="badge badge-{{ task.status.value }}">{{ task.status.value.replace('_', ' ').title() }}</span></td>
       <td>{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '—' }}</td>
     </tr>
     {% endfor %}
