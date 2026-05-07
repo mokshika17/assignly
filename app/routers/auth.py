@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
-from app.models import User
+from app.models import User, UserRole
 from app.schemas import UserCreate, UserRead, LoginRequest, TokenResponse
 from app.auth import hash_password, verify_password, create_access_token
 from app.limiter import limiter
@@ -19,11 +19,14 @@ def signup(request: Request, payload: UserCreate, db: Session = Depends(get_db))
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+
+    # Always register new users as members — role elevation must go through
+    # an admin action, not the public signup endpoint.
     user = User(
         name=payload.name,
         email=payload.email,
         hashed_password=hash_password(payload.password),
-        role=payload.role,
+        role=UserRole.member,
     )
     db.add(user)
     db.commit()
