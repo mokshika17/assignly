@@ -8,7 +8,8 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
 
-    # Database
+    # Database — set DATABASE_URL to the Railway Postgres private URL, e.g.:
+    # postgresql://user:pass@postgres.railway.internal:5432/dbname
     DATABASE_URL: str
 
     # JWT
@@ -32,6 +33,3 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
-settings = get_settings()
-
-settings = get_settings()
