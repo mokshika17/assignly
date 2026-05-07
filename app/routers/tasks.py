@@ -7,7 +7,7 @@ from app.dependencies import get_db, get_current_user, require_admin
 from app.models import Task, Project, User, UserRole, TaskStatus
 from app.schemas import TaskCreate, TaskUpdate, TaskRead
 from app.cache import cache_get, cache_set, cache_delete
-from app.config import settings
+from app.config import get_settings
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -67,7 +67,7 @@ def list_tasks(
             return cached
         tasks = db.query(Task).filter(Task.project_id == project_id).all()
         serialized = [TaskRead.model_validate(t).model_dump(mode="json") for t in tasks]
-        cache_set(cache_key, serialized, settings.CACHE_TTL_TASKS)
+        cache_set(cache_key, serialized, get_settings().CACHE_TTL_TASKS)
         return tasks
 
     return db.query(Task).all()
@@ -99,7 +99,7 @@ def dashboard_summary(
             if t.due_date and t.due_date < now and t.status != TaskStatus.done
         ),
     }
-    cache_set(cache_key, summary, settings.CACHE_TTL_DASHBOARD)
+    cache_set(cache_key, summary, get_settings().CACHE_TTL_DASHBOARD)
     return summary
 
 
