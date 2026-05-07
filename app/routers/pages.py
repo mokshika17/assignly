@@ -100,41 +100,41 @@ def login_submit(
     return redirect_with_cookie("/dashboard", token, remember_me=is_remembered)
 
 
-    @router.get("/signup", response_class=HTMLResponse)
-    def signup_page(request: Request):
-        return render("signup.html", request, {"user": None})
+@router.get("/signup", response_class=HTMLResponse)
+def signup_page(request: Request):
+    return render("signup.html", request, {"user": None})
 
 
-    @router.post("/signup", response_class=HTMLResponse)
-    def signup_submit(
-        request: Request,
-        name: str = Form(...),
-        email: str = Form(...),
-        password: str = Form(...),
-        role: str = Form("member"),
-        db: Session = Depends(get_db),
-    ):
-        existing = db.query(User).filter(User.email == email).first()
-        if existing:
-            return render("signup.html", request, {
-                "user": None,
-                "error": "Email already registered",
-            })
-        if len(password) < 8:
-            return render("signup.html", request, {
-                "user": None,
-                "error": "Password must be at least 8 characters",
-            })
-        user = User(
-            name=name,
-            email=email,
-            hashed_password=hash_password(password),
-            role=UserRole(role),
-        )
-        db.add(user)
-        db.commit()
-        token = create_access_token(subject=str(user.id), role=user.role.value)
-        return redirect_with_cookie("/dashboard", token)
+@router.post("/signup", response_class=HTMLResponse)
+def signup_submit(
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    role: str = Form("member"),
+    db: Session = Depends(get_db),
+):
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        return render("signup.html", request, {
+            "user": None,
+            "error": "Email already registered",
+        })
+    if len(password) < 8:
+        return render("signup.html", request, {
+            "user": None,
+            "error": "Password must be at least 8 characters",
+        })
+    user = User(
+        name=name,
+        email=email,
+        hashed_password=hash_password(password),
+        role=UserRole(role),
+    )
+    db.add(user)
+    db.commit()
+    token = create_access_token(subject=str(user.id), role=user.role.value)
+    return redirect_with_cookie("/dashboard", token)
 
 
 @router.post("/logout")
