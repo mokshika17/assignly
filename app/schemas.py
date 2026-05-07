@@ -16,7 +16,6 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-    role: UserRole = UserRole.member
 
     @field_validator("password")
     @classmethod
