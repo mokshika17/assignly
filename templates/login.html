@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Login — Assignly{% endblock %}
+{% block content %}
+<article style="max-width: 420px; margin: 4rem auto;">
+  <h2>Login</h2>
+  <form method="post" action="/login">
+    <label>Email
+      <input type="email" name="email" required autofocus />
+    </label>
+    <label>Password
+      <input type="password" name="password" required />
+    </label>
+    <fieldset>
+    <label>
+        <input type="checkbox" name="remember_me" value="on" />
+        Remember me for 30 days
+    </label>
+    </fieldset>
+    <button type="submit">Login</button>
+  </form>
+  <p style="margin-top:1rem;">Don't have an account? <a href="/signup">Sign up</a></p>
+</article>
+{% endblock %}

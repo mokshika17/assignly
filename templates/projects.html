@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Projects — Assignly{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center;">
+  <h2>Projects</h2>
+  {% if user.role == "admin" %}
+    <a href="/projects/new" role="button">+ New Project</a>
+  {% endif %}
+</div>
+
+{% if show_form %}
+<article style="max-width: 540px; margin-bottom: 2rem;">
+  <h3>Create New Project</h3>
+  <form method="post" action="/projects/new">
+    <label>Name
+      <input type="text" name="name" required autofocus />
+    </label>
+    <label>Description
+      <textarea name="description" rows="3"></textarea>
+    </label>
+    <button type="submit">Create Project</button>
+    <a href="/projects" role="button" class="secondary" style="margin-left:1rem;">Cancel</a>
+  </form>
+</article>
+{% endif %}
+
+{% if projects %}
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Created</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for project in projects %}
+    <tr>
+      <td><strong>{{ project.name }}</strong></td>
+      <td>{{ project.description or '—' }}</td>
+      <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
+      <td><a href="/projects/{{ project.id }}">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+  <p>No projects yet.</p>
+{% endif %}
+{% endblock %}

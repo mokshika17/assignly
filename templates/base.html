@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Assignly{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+  <style>
+    nav { padding: 0 2rem; }
+    .nav-brand { font-weight: 700; font-size: 1.2rem; text-decoration: none; color: inherit; }
+    .nav-links a { margin-left: 1.5rem; text-decoration: none; }
+    .flash-error { color: var(--pico-color-red-500); margin-bottom: 1rem; }
+    .flash-success { color: var(--pico-color-green-500); margin-bottom: 1rem; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-todo { background: #e0e0e0; color: #333; }
+    .badge-in_progress { background: #fff3cd; color: #856404; }
+    .badge-done { background: #d4edda; color: #155724; }
+    .badge-overdue { background: #f8d7da; color: #721c24; }
+    main.container { padding-top: 2rem; }
+  </style>
+</head>
+<body>
+  <nav class="container-fluid">
+    <ul>
+      <li><a class="nav-brand" href="/">Assignly</a></li>
+    </ul>
+    <ul class="nav-links">
+      {% if user %}
+        <li><a href="/dashboard">Dashboard</a></li>
+        <li><a href="/projects">Projects</a></li>
+        {% if user.role == "admin" %}
+          <li><a href="/projects/new">New Project</a></li>
+        {% endif %}
+        <li><a href="/auth/logout" onclick="document.getElementById('logout-form').submit(); return false;">Logout ({{ user.name }})</a></li>
+        <form id="logout-form" action="/logout" method="post" style="display:none;"></form>
+      {% else %}
+        <li><a href="/login">Login</a></li>
+        <li><a href="/signup">Signup</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+
+  <main class="container">
+    {% if error %}
+      <p class="flash-error">{{ error }}</p>
+    {% endif %}
+    {% if success %}
+      <p class="flash-success">{{ success }}</p>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Edit Task — Assignly{% endblock %}
+{% block content %}
+<h2>Edit Task</h2>
+<article style="max-width: 540px;">
+  <form method="post" action="/tasks/{{ task.id }}/edit">
+
+    {% if user.role == "admin" %}
+    <label>Title
+      <input type="text" name="title" value="{{ task.title }}" required />
+    </label>
+    <label>Description
+      <textarea name="description">{{ task.description or '' }}</textarea>
+    </label>
+    <label>Due Date
+      <input type="datetime-local" name="due_date"
+        value="{{ task.due_date.strftime('%Y-%m-%dT%H:%M') if task.due_date else '' }}" />
+    </label>
+    <label>Assignee
+      <select name="assignee_id">
+        <option value="">— Unassigned —</option>
+        {% for member in members %}
+          <option value="{{ member.id }}" {% if task.assignee_id == member.id %}selected{% endif %}>
+            {{ member.name }} ({{ member.role }})
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+
+    <label>Status
+      <select name="status">
+        {% for s in statuses %}
+          <option value="{{ s }}" {% if task.status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <button type="submit">Save Changes</button>
+    <a href="/projects/{{ task.project_id }}" role="button" class="secondary" style="margin-left:1rem;">Cancel</a>
+  </form>
+</article>
+{% endblock %}

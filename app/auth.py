@@ -25,12 +25,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # JWT
 # ---------------------------------------------------------------------------
 
-def create_access_token(subject: str, role: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+def create_access_token(subject: str, role: str, remember_me: bool = False) -> str:
+    expire_minutes = (
+        settings.REMEMBER_ME_EXPIRE_MINUTES if remember_me
+        else settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
+    expire = datetime.now(timezone.utc) + timedelta(minutes=expire_minutes)
     payload = {
-        "sub": subject,       # user id (UUID as string)
+        "sub": subject,
         "role": role,
         "exp": expire,
     }

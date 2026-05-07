@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REMEMBER_ME_EXPIRE_MINUTES: int = 43200  # 30 days
+
+    # Caching
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CACHE_TTL_DASHBOARD: int = 60
+    CACHE_TTL_PROJECTS: int = 120
+    CACHE_TTL_TASKS: int = 60
 
     class Config:
         env_file = ".env"
@@ -25,3 +32,6 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+settings = get_settings()
+
+settings = get_settings()

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Assignly{% endblock %}
+{% block content %}
+<h2>Dashboard</h2>
+<p>Welcome back, <strong>{{ user.name }}</strong> ({{ user.role }})</p>
+
+<div class="grid">
+  <article>
+    <h3>{{ summary.total }}</h3>
+    <p>Total Tasks</p>
+  </article>
+  <article>
+    <h3>{{ summary.todo }}</h3>
+    <p>To Do</p>
+  </article>
+  <article>
+    <h3>{{ summary.in_progress }}</h3>
+    <p>In Progress</p>
+  </article>
+  <article>
+    <h3>{{ summary.done }}</h3>
+    <p>Done</p>
+  </article>
+  <article>
+    <h3 style="color: var(--pico-color-red-500);">{{ summary.overdue }}</h3>
+    <p>Overdue</p>
+  </article>
+</div>
+
+<h3 style="margin-top: 2rem;">My Tasks</h3>
+{% if tasks %}
+<table>
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Project</th>
+      <th>Status</th>
+      <th>Due Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for task in tasks %}
+    <tr>
+      <td>{{ task.title }}</td>
+      <td><a href="/projects/{{ task.project_id }}">View Project</a></td>
+      <td><span class="badge badge-{{ task.status }}">{{ task.status }}</span></td>
+      <td>{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+  <p>No tasks assigned yet.</p>
+{% endif %}
+{% endblock %}

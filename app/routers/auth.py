@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
 from app.models import User
 from app.schemas import UserCreate, UserRead, LoginRequest, TokenResponse
 from app.auth import hash_password, verify_password, create_access_token
+from app.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -13,14 +14,11 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # ---------------------------------------------------------------------------
 
 @router.post("/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def signup(payload: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def signup(request: Request, payload: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
-        )
-
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
     user = User(
         name=payload.name,
         email=payload.email,
@@ -38,29 +36,22 @@ def signup(payload: UserCreate, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-        )
-
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive",
-        )
-
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is inactive")
     token = create_access_token(subject=str(user.id), role=user.role.value)
 
     # Set cookie for browser clients (Jinja2)
     response.set_cookie(
         key="access_token",
         value=token,
-        httponly=True,       # not accessible via JS
+        httponly=True,
         samesite="lax",
-        secure=False,        # set True in production (HTTPS)
+        secure=False,
     )
 
     return TokenResponse(access_token=token)
