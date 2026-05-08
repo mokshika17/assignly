@@ -17,6 +17,7 @@ from app.database import engine, SessionLocal
 from app.cache import get_redis
 from app.dependencies import require_admin
 from app.models import User
+from app.routers import analytics
 
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,7 @@ templates = Jinja2Templates(directory="templates")
 app.include_router(auth.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
+app.include_router(analytics.router)
 
 # Pages router last — catches all UI routes
 app.include_router(pages.router)
@@ -153,12 +155,5 @@ def health():
     except Exception as e:
         status["db"] = f"error: {str(e)}"
 
-    # Check Redis
-    try:
-        get_redis().ping()
-        status["redis"] = "ok"
-    except Exception as e:
-        status["redis"] = f"error: {str(e)}"
-
-    status["status"] = "ok" if status["db"] == "ok" and status["redis"] == "ok" else "degraded"
+    status["status"] = "ok" if status["db"] == "ok" else "degraded"
     return status

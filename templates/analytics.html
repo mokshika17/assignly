@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Analytics — Assignly{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1100px; margin: 0 auto; padding: 2rem 1rem;">
+  <h1>Analytics</h1>
+
+  <!-- Summary Cards -->
+  <div id="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 2rem;">
+    <div class="card" id="card-total"><strong id="val-total">—</strong><small>Total tasks</small></div>
+    <div class="card" id="card-rate"><strong id="val-rate">—</strong><small>Completion rate</small></div>
+    <div class="card" id="card-overdue"><strong id="val-overdue">—</strong><small>Overdue</small></div>
+    <div class="card" id="card-lateness"><strong id="val-lateness">—</strong><small>Avg days late</small></div>
+    <div class="card" id="card-projects"><strong id="val-projects">—</strong><small>Projects</small></div>
+    <div class="card" id="card-members"><strong id="val-members">—</strong><small>Members</small></div>
+  </div>
+
+  <!-- Charts Row -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <div>
+      <h4>Completion rate by project</h4>
+      <div style="position: relative; height: 260px;">
+        <canvas id="projectChart" role="img" aria-label="Bar chart showing completion rate per project"></canvas>
+      </div>
+    </div>
+    <div>
+      <h4>Tasks completed — last 30 days</h4>
+      <div style="position: relative; height: 260px;">
+        <canvas id="timelineChart" role="img" aria-label="Line chart showing tasks completed per day over last 30 days"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project breakdown table -->
+  <h4>Project breakdown</h4>
+  <div style="overflow-x: auto; margin-bottom: 2rem;">
+    <table style="width: 100%;">
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Total</th>
+          <th>Done</th>
+          <th>In progress</th>
+          <th>Todo</th>
+          <th>Completion</th>
+        </tr>
+      </thead>
+      <tbody id="projects-table-body">
+        <tr><td colspan="6">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Assignee breakdown table -->
+  <h4>Assignee breakdown</h4>
+  <div style="overflow-x: auto;">
+    <table style="width: 100%;">
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Total</th>
+          <th>Done</th>
+          <th>In progress</th>
+          <th>Todo</th>
+          <th>Overdue</th>
+        </tr>
+      </thead>
+      <tbody id="assignees-table-body">
+        <tr><td colspan="6">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+  .card { background: var(--card-background-color, #fff); border: 1px solid var(--card-border-color, #e0e0e0); border-radius: 8px; padding: 1rem; text-align: center; }
+  .card strong { display: block; font-size: 1.6rem; margin-bottom: 4px; }
+  .card small { color: var(--muted-color, #666); font-size: 0.8rem; }
+  .badge-done { background: #EAF3DE; color: #27500A; padding: 2px 8px; border-radius: 99px; font-size: 12px; }
+  .badge-overdue { background: #FCEBEB; color: #791F1F; padding: 2px 8px; border-radius: 99px; font-size: 12px; }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed: " + url);
+  return res.json();
+}
+
+async function loadAnalytics() {
+  try {
+    const [summary, projects, assignees, timeline] = await Promise.all([
+      fetchJSON("/api/analytics/summary"),
+      fetchJSON("/api/analytics/projects"),
+      fetchJSON("/api/analytics/assignees"),
+      fetchJSON("/api/analytics/timeline"),
+    ]);
+
+    // Summary cards
+    document.getElementById("val-total").textContent = summary.total_tasks;
+    document.getElementById("val-rate").textContent = summary.completion_rate + "%";
+    document.getElementById("val-overdue").textContent = summary.overdue_tasks;
+    document.getElementById("val-lateness").textContent = summary.avg_lateness_days + "d";
+    document.getElementById("val-projects").textContent = summary.total_projects;
+    document.getElementById("val-members").textContent = summary.total_members;
+
+    if (summary.overdue_tasks > 0) {
+      document.getElementById("card-overdue").style.borderColor = "#F09595";
+    }
+
+    // Project bar chart
+    new Chart(document.getElementById("projectChart"), {
+      type: "bar",
+      data: {
+        labels: projects.map(p => p.project_name),
+        datasets: [{
+          label: "Completion %",
+          data: projects.map(p => p.completion_rate),
+          backgroundColor: "#639922",
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { min: 0, max: 100, ticks: { callback: v => v + "%" } }
+        }
+      }
+    });
+
+    // Timeline line chart
+    new Chart(document.getElementById("timelineChart"), {
+      type: "line",
+      data: {
+        labels: timeline.map(p => p.date.slice(5)),
+        datasets: [{
+          label: "Completed",
+          data: timeline.map(p => p.completed),
+          borderColor: "#378ADD",
+          backgroundColor: "rgba(55,138,221,0.1)",
+          fill: true,
+          tension: 0.3,
+          pointRadius: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { autoSkip: true, maxTicksLimit: 10 } },
+          y: { min: 0, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+
+    // Projects table
+    const ptBody = document.getElementById("projects-table-body");
+    if (projects.length === 0) {
+      ptBody.innerHTML = "<tr><td colspan='6'>No projects yet.</td></tr>";
+    } else {
+      ptBody.innerHTML = projects.map(p => `
+        <tr>
+          <td>${p.project_name}</td>
+          <td>${p.total}</td>
+          <td>${p.done}</td>
+          <td>${p.in_progress}</td>
+          <td>${p.todo}</td>
+          <td><span class="badge-done">${p.completion_rate}%</span></td>
+        </tr>
+      `).join("");
+    }
+
+    // Assignees table
+    const atBody = document.getElementById("assignees-table-body");
+    if (assignees.length === 0) {
+      atBody.innerHTML = "<tr><td colspan='6'>No assigned tasks yet.</td></tr>";
+    } else {
+      atBody.innerHTML = assignees.map(a => `
+        <tr>
+          <td>${a.user_name}</td>
+          <td>${a.total}</td>
+          <td>${a.done}</td>
+          <td>${a.in_progress}</td>
+          <td>${a.todo}</td>
+          <td>${a.overdue > 0 ? `<span class="badge-overdue">${a.overdue}</span>` : "0"}</td>
+        </tr>
+      `).join("");
+    }
+
+  } catch (err) {
+    console.error("Analytics load error:", err);
+  }
+}
+
+loadAnalytics();
+</script>
+{% endblock %}
