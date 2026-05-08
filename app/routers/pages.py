@@ -406,3 +406,14 @@ def delete_task_page(request: Request, task_id: uuid.UUID, db: Session = Depends
     db.delete(task)
     db.commit()
     return RedirectResponse(url=f"/projects/{project_id}", status_code=303)
+
+# ---------------------------------------------------------------------------
+# Analytics
+# ---------------------------------------------------------------------------
+
+@router.get("/analytics", response_class=HTMLResponse)
+def analytics_page(request: Request, db: Session = Depends(get_db)):
+    user = get_optional_user(request, db)
+    if not user or user.role != UserRole.admin:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    return render("analytics.html", request, {"user": user})

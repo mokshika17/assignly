@@ -30,6 +30,7 @@
         <li><a href="/projects">Projects</a></li>
         {% if user.role == "admin" %}
           <li><a href="/projects/new">New Project</a></li>
+          <li><a href="/analytics">Analytics</a></li>
         {% endif %}
         <li><a href="/auth/logout" onclick="document.getElementById('logout-form').submit(); return false;">Logout ({{ user.name }})</a></li>
         <form id="logout-form" action="/logout" method="post" style="display:none;"></form>

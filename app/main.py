@@ -13,6 +13,9 @@ from app.config import get_settings
 from app.routers import auth, projects, tasks, pages
 from app.limiter import limiter
 from app.logger import setup_logging, get_logger
+import uuid
+from starlette.middleware.base import BaseHTTPMiddleware
+from app.routers import analytics
 from app.database import engine, SessionLocal
 from app.cache import get_redis
 from app.dependencies import require_admin
@@ -98,6 +101,7 @@ templates = Jinja2Templates(directory="templates")
 app.include_router(auth.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
+app.include_router(analytics.router)
 
 # Pages router last — catches all UI routes
 app.include_router(pages.router)
@@ -153,12 +157,5 @@ def health():
     except Exception as e:
         status["db"] = f"error: {str(e)}"
 
-    # Check Redis
-    try:
-        get_redis().ping()
-        status["redis"] = "ok"
-    except Exception as e:
-        status["redis"] = f"error: {str(e)}"
-
-    status["status"] = "ok" if status["db"] == "ok" and status["redis"] == "ok" else "degraded"
+    status["status"] = "ok" if status["db"] == "ok" else "degraded"
     return status
