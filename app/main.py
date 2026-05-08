@@ -20,6 +20,7 @@ from app.database import engine, SessionLocal
 from app.cache import get_redis
 from app.dependencies import require_admin
 from app.models import User
+from app.routers import analytics
 
 
 logger = logging.getLogger(__name__)
