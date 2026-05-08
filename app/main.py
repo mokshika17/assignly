@@ -1,18 +1,25 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from app.config import get_settings
-from app.routers import auth, projects, tasks, pages
-from fastapi import Request
 from fastapi.responses import JSONResponse
-import logging
+from sqlalchemy import text
+from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+import logging
+import uuid
+
+from app.config import get_settings
+from app.routers import auth, projects, tasks, pages
 from app.limiter import limiter
 from app.logger import setup_logging, get_logger
 import uuid
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.routers import analytics
+from app.database import engine, SessionLocal
+from app.cache import get_redis
+from app.dependencies import require_admin
+from app.models import User
 
 
 logger = logging.getLogger(__name__)
@@ -102,14 +109,41 @@ app.include_router(pages.router)
 @app.on_event("startup")
 async def on_startup():
     logger.info("app_started", name=settings.APP_NAME, version=settings.APP_VERSION, debug=settings.DEBUG)
+    # Seed the default admin user on every startup (idempotent — skips if already present).
+    try:
+        from scripts.seed_admin import seed_admin
+        db = SessionLocal()
+        try:
+            seed_admin(db)
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.error("seed_admin_failed", error=str(exc), exc_info=True)
+
+# ---------------------------------------------------------------------------
+# Admin Seed Endpoint
+# ---------------------------------------------------------------------------
+
+@app.post("/admin/seed", tags=["Admin"], summary="Bootstrap the default admin user")
+def admin_seed(current_user: User = Depends(require_admin)):
+    """
+    Idempotent endpoint that creates the default admin user (admin@assignly.com).
+    Requires an existing admin JWT — intended for use after the first manual seed
+    or in environments where the startup seed is unavailable.
+    """
+    from scripts.seed_admin import seed_admin
+    db = SessionLocal()
+    try:
+        created = seed_admin(db)
+    finally:
+        db.close()
+    if created:
+        return {"status": "created", "email": "admin@assignly.com"}
+    return {"status": "already_exists", "email": "admin@assignly.com"}
 
 # ---------------------------------------------------------------------------
 # Health Check
 # ---------------------------------------------------------------------------
-
-from sqlalchemy import text
-from app.database import engine
-from app.cache import get_redis
 
 @app.get("/health", tags=["Health"])
 def health():
